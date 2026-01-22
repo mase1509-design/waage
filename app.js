@@ -1,140 +1,145 @@
 // ===============================
-// DOM ELEMENTE
+// DOM READY
 // ===============================
-const form = document.getElementById("entryForm");
-const tableBody = document.querySelector("#dataTable tbody");
-const chart = document.getElementById("chart");
-const ctx = chart.getContext("2d");
+document.addEventListener("DOMContentLoaded", () => {
 
-const dateInput = document.getElementById("date");
-const weightInput = document.getElementById("weight");
-const muscleInput = document.getElementById("muscle");
-const fatInput = document.getElementById("fat");
+  // ===============================
+  // DOM ELEMENTE
+  // ===============================
+  const form = document.getElementById("entryForm");
+  const tableBody = document.querySelector("#dataTable tbody");
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
 
-// ===============================
-// INITIALISIERUNG
-// ===============================
-dateInput.valueAsDate = new Date();
+  const dateInput = document.getElementById("date");
+  const weightInput = document.getElementById("weight");
+  const muscleInput = document.getElementById("muscle");
+  const fatInput = document.getElementById("fat");
 
-let data = [];
-try {
-  data = JSON.parse(localStorage.getItem("bodyData")) || [];
-} catch {
-  data = [];
-}
+  // ===============================
+  // CANVAS FIX (DAS WAR DER FEHLER)
+  // ===============================
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
 
-// ===============================
-// SPEICHERN
-// ===============================
-function saveData() {
-  localStorage.setItem("bodyData", JSON.stringify(data));
-}
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
 
-// ===============================
-// TABELLE
-// ===============================
-function renderTable() {
-  tableBody.innerHTML = "";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
-  data.forEach(entry => {
-    const row = document.createElement("tr");
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
 
-    row.innerHTML = `
-      <td>${entry.date}</td>
-      <td>${entry.weight.toFixed(1)}</td>
-      <td>${entry.muscle.toFixed(1)}</td>
-      <td>${entry.fat.toFixed(1)}</td>
-    `;
+  // ===============================
+  // INITIALISIERUNG
+  // ===============================
+  dateInput.valueAsDate = new Date();
 
-    tableBody.appendChild(row);
-  });
-}
+  let data = [];
+  try {
+    data = JSON.parse(localStorage.getItem("bodyData")) || [];
+  } catch {
+    data = [];
+  }
 
-// ===============================
-// DIAGRAMM
-// ===============================
-function renderChart() {
-  // Canvas leeren
-  ctx.clearRect(0, 0, chart.width, chart.height);
-
-  if (data.length < 2) return;
-
-  const padding = 30;
-  const width = chart.width - padding * 2;
-  const height = chart.height - padding * 2;
-
-  function drawLine(key, color) {
-    const values = data.map(d => d[key]);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-
-    data.forEach((d, i) => {
-      const x =
-        padding + (i / (data.length - 1)) * width;
-
-      const y =
-        padding +
-        height -
-        ((d[key] - min) / range) * height;
-
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-
-      // Punkt
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
+  // ===============================
+  // TABELLE
+  // ===============================
+  function renderTable() {
+    tableBody.innerHTML = "";
+    data.forEach(e => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${e.date}</td>
+        <td>${e.weight.toFixed(1)}</td>
+        <td>${e.muscle.toFixed(1)}</td>
+        <td>${e.fat.toFixed(1)}</td>
+      `;
+      tableBody.appendChild(tr);
     });
-
-    ctx.stroke();
   }
 
-  drawLine("weight", "#ff3b30"); // Gewicht
-  drawLine("muscle", "#34c759"); // Muskelmasse
-  drawLine("fat", "#007aff");    // Fettwert
-}
+  // ===============================
+  // DIAGRAMM (JETZT SICHTBAR)
+  // ===============================
+  function renderChart() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// ===============================
-// FORMULAR
-// ===============================
-form.addEventListener("submit", e => {
-  e.preventDefault();
+    if (data.length < 2) {
+      // Debug-Hilfe: Rahmen zeichnen
+      ctx.strokeStyle = "#ccc";
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
 
-  const entry = {
-    date: dateInput.value,
-    weight: Number(weightInput.value),
-    muscle: Number(muscleInput.value),
-    fat: Number(fatInput.value)
-  };
+    const padding = 30;
+    const w = canvas.width / (window.devicePixelRatio || 1) - padding * 2;
+    const h = canvas.height / (window.devicePixelRatio || 1) - padding * 2;
 
-  if (
-    !entry.date ||
-    isNaN(entry.weight) ||
-    isNaN(entry.muscle) ||
-    isNaN(entry.fat)
-  ) {
-    alert("Bitte alle Felder korrekt ausfüllen");
-    return;
+    function drawLine(key, color) {
+      const values = data.map(d => d[key]);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min || 1;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      data.forEach((d, i) => {
+        const x = padding + (i / (data.length - 1)) * w;
+        const y = padding + h - ((d[key] - min) / range) * h;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.stroke();
+    }
+
+    drawLine("weight", "#ff3b30");
+    drawLine("muscle", "#34c759");
+    drawLine("fat", "#007aff");
   }
 
-  data.push(entry);
-  saveData();
+  // ===============================
+  // FORMULAR
+  // ===============================
+  form.addEventListener("submit", e => {
+    e.preventDefault();
 
+    const entry = {
+      date: dateInput.value,
+      weight: Number(weightInput.value),
+      muscle: Number(muscleInput.value),
+      fat: Number(fatInput.value)
+    };
+
+    if (Object.values(entry).some(v => !v && v !== 0)) {
+      alert("Bitte alle Felder ausfüllen");
+      return;
+    }
+
+    data.push(entry);
+    localStorage.setItem("bodyData", JSON.stringify(data));
+
+    renderTable();
+    renderChart();
+
+    form.reset();
+    dateInput.valueAsDate = new Date();
+  });
+
+  // ===============================
+  // START
+  // ===============================
   renderTable();
   renderChart();
-
-  form.reset();
-  dateInput.valueAsDate = new Date();
 });
-
-// ===============================
-// INITIAL RENDER
-// ===============================
-renderTable();
-renderChart();
