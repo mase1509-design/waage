@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gewichts Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+</head>
+<body>
+  <h1>📊 Körperwerte Tracker</h1>
+
+  <form id="entryForm">
+    <label>Datum
+      <input type="date" id="date">
+    </label>
+    <label>Gewicht (kg)
+      <input type="number" step="0.1" id="weight" required>
+    </label>
+    <label>Muskelmasse (%) 
+      <input type="number" step="0.1" id="muscle" required>
+    </label>
+    <label>Fettwert (%) 
+      <input type="number" step="0.1" id="fat" required>
+    </label>
+    <button type="submit">Speichern</button>
+  </form>
+
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Gewicht</th>
+        <th>Muskelmasse</th>
+        <th>Fett</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <canvas id="chart" width="300" height="200"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
