@@ -1,8 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ===============================
-  // DOM
-  // ===============================
   const form = document.getElementById("entryForm");
   const tableBody = document.querySelector("#dataTable tbody");
   const canvas = document.getElementById("chart");
@@ -14,11 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const fatInput = document.getElementById("fat");
 
   // ===============================
-  // CANVAS SCALING (RETINA FIX)
+  // CANVAS FIX (ZWINGEND)
   // ===============================
   function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
 
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -34,85 +31,138 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===============================
   dateInput.valueAsDate = new Date();
 
-  let data = [];
-  try {
-    data = JSON.parse(localStorage.getItem("bodyData")) || [];
-  } catch {
-    data = [];
-  }
+  let data = JSON.parse(localStorage.getItem("bodyData") || "[]");
 
   // ===============================
   // TABLE
   // ===============================
   function renderTable() {
     tableBody.innerHTML = "";
-    data.forEach(e => {
+    data.forEach(d => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${e.date}</td>
-        <td>${e.weight.toFixed(1)}</td>
-        <td>${e.muscle.toFixed(1)}</td>
-        <td>${e.fat.toFixed(1)}</td>
+        <td>${d.date}</td>
+        <td>${d.weight}</td>
+        <td>${d.muscle}</td>
+        <td>${d.fat}</td>
       `;
       tableBody.appendChild(tr);
     });
   }
 
   // ===============================
-  // AXES
+  // CHART + AXES (UNÜBERSEHBAR)
   // ===============================
-  function drawAxes(pad, w, h) {
-    ctx.strokeStyle = "#999";
-    ctx.lineWidth = 1;
+  function renderChart() {
+    const w = canvas.width / (window.devicePixelRatio || 1);
+    const h = canvas.height / (window.devicePixelRatio || 1);
 
-    // Y-Achse
+    // Hintergrund
+    ctx.fillStyle = "#f0f0f0";
+    ctx.fillRect(0, 0, w, h);
+
+    // Debug Text
+    ctx.fillStyle = "#000";
+    ctx.font = "16px sans-serif";
+    ctx.fillText("Chart active", 10, 20);
+
+    if (data.length < 2) {
+      ctx.fillText("Zu wenig Daten", 10, 45);
+      return;
+    }
+
+    const pad = 50;
+    const chartW = w - pad * 2;
+    const chartH = h - pad * 2;
+
+    // ACHSEN
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+
+    // Y
     ctx.beginPath();
     ctx.moveTo(pad, pad);
-    ctx.lineTo(pad, pad + h);
+    ctx.lineTo(pad, pad + chartH);
     ctx.stroke();
 
-    // X-Achse
+    // X
     ctx.beginPath();
-    ctx.moveTo(pad, pad + h);
-    ctx.lineTo(pad + w, pad + h);
+    ctx.moveTo(pad, pad + chartH);
+    ctx.lineTo(pad + chartW, pad + chartH);
     ctx.stroke();
 
-    // Y-Skala
-    ctx.fillStyle = "#666";
-    ctx.font = "12px sans-serif";
+    // Y Labels 0–100
+    ctx.font = "14px sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
 
-    const steps = 5;
-    for (let i = 0; i <= steps; i++) {
-      const y = pad + h - (i / steps) * h;
-      const value = Math.round((i / steps) * 100);
-      ctx.fillText(value, pad - 6, y);
-
-      ctx.strokeStyle = "#eee";
-      ctx.beginPath();
-      ctx.moveTo(pad, y);
-      ctx.lineTo(pad + w, y);
-      ctx.stroke();
+    for (let i = 0; i <= 5; i++) {
+      const y = pad + chartH - (i / 5) * chartH;
+      const val = i * 20;
+      ctx.fillText(val, pad - 8, y);
     }
 
-    // X-Labels (Datum)
+    // X Labels (Datum)
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     data.forEach((d, i) => {
-      const x = pad + (i / (data.length - 1 || 1)) * w;
-      ctx.fillStyle = "#666";
-      ctx.fillText(d.date.slice(5), x, pad + h + 6);
+      const x = pad + (i / (data.length - 1)) * chartW;
+      ctx.fillText(d.date.slice(5), x, pad + chartH + 8);
     });
+
+    function drawLine(key, color) {
+      const vals = data.map(d => d[key]);
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const range = max - min || 1;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      data.forEach((d, i) => {
+        const x = pad + (i / (data.length - 1)) * chartW;
+        const y = pad + chartH - ((d[key] - min) / range) * chartH;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.stroke();
+    }
+
+    drawLine("weight", "red");
+    drawLine("muscle", "green");
+    drawLine("fat", "blue");
   }
 
   // ===============================
-  // CHART
+  // FORM
   // ===============================
-  function renderChart() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (data.length < 2) return;
+  form.addEventListener("submit", e => {
+    e.preventDefault();
 
-    const pad = 40;
-    const w = canvas.width / (window.devicePixelRatio || 1) - pad * 2;
-    const h = canvas.height / (window.devicePixelRatio ||
+    data.push({
+      date: dateInput.value,
+      weight: Number(weightInput.value),
+      muscle: Number(muscleInput.value),
+      fat: Number(fatInput.value)
+    });
+
+    localStorage.setItem("bodyData", JSON.stringify(data));
+
+    renderTable();
+    renderChart();
+
+    form.reset();
+    dateInput.valueAsDate = new Date();
+  });
+
+  renderTable();
+  renderChart();
+});
