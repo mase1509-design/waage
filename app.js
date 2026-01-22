@@ -21,27 +21,42 @@ function renderTable() {
 }
 
 function renderChart() {
-  ctx.clearRect(0,0,chart.width,chart.height);
+  ctx.clearRect(0, 0, chart.width, chart.height);
   if (data.length < 2) return;
 
-  const pad = 20;
-  const maxVal = Math.max(...data.map(d => Math.max(d.weight, d.muscle, d.fat)));
-  const minVal = Math.min(...data.map(d => Math.min(d.weight, d.muscle, d.fat)));
+  const pad = 30;
+  const h = chart.height - pad * 2;
+  const w = chart.width - pad * 2;
 
   function drawLine(key, color) {
+    const values = data.map(d => d[key]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
     ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    data.forEach((d,i) => {
-      const x = pad + i*(chart.width-2*pad)/(data.length-1);
-      const y = chart.height - pad - (d[key]-minVal)/(maxVal-minVal)*(chart.height-2*pad);
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+
+    data.forEach((d, i) => {
+      const x = pad + (i / (data.length - 1)) * w;
+      const y = pad + h - ((d[key] - min) / (max - min || 1)) * h;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+
+      // Punkt
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
     });
+
     ctx.stroke();
   }
 
-  drawLine('weight','red');
-  drawLine('muscle','green');
-  drawLine('fat','blue');
+  drawLine('weight', '#ff3b30'); // Gewicht
+  drawLine('muscle', '#34c759'); // Muskel
+  drawLine('fat', '#007aff');    // Fett
 }
 
 form.addEventListener('submit', e => {
