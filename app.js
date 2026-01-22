@@ -1,10 +1,7 @@
-// ===============================
-// DOM READY
-// ===============================
 document.addEventListener("DOMContentLoaded", () => {
 
   // ===============================
-  // DOM ELEMENTE
+  // DOM
   // ===============================
   const form = document.getElementById("entryForm");
   const tableBody = document.querySelector("#dataTable tbody");
@@ -17,12 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const fatInput = document.getElementById("fat");
 
   // ===============================
-  // CANVAS FIX (DAS WAR DER FEHLER)
+  // CANVAS SCALING (RETINA FIX)
   // ===============================
   function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
-
     const rect = canvas.getBoundingClientRect();
+
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
 
@@ -33,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", resizeCanvas);
 
   // ===============================
-  // INITIALISIERUNG
+  // INIT
   // ===============================
   dateInput.valueAsDate = new Date();
 
@@ -45,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===============================
-  // TABELLE
+  // TABLE
   // ===============================
   function renderTable() {
     tableBody.innerHTML = "";
@@ -62,84 +59,60 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===============================
-  // DIAGRAMM (JETZT SICHTBAR)
+  // AXES
   // ===============================
-  function renderChart() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function drawAxes(pad, w, h) {
+    ctx.strokeStyle = "#999";
+    ctx.lineWidth = 1;
 
-    if (data.length < 2) {
-      // Debug-Hilfe: Rahmen zeichnen
-      ctx.strokeStyle = "#ccc";
-      ctx.strokeRect(0, 0, canvas.width, canvas.height);
-      return;
-    }
+    // Y-Achse
+    ctx.beginPath();
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, pad + h);
+    ctx.stroke();
 
-    const padding = 30;
-    const w = canvas.width / (window.devicePixelRatio || 1) - padding * 2;
-    const h = canvas.height / (window.devicePixelRatio || 1) - padding * 2;
+    // X-Achse
+    ctx.beginPath();
+    ctx.moveTo(pad, pad + h);
+    ctx.lineTo(pad + w, pad + h);
+    ctx.stroke();
 
-    function drawLine(key, color) {
-      const values = data.map(d => d[key]);
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const range = max - min || 1;
+    // Y-Skala
+    ctx.fillStyle = "#666";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) {
+      const y = pad + h - (i / steps) * h;
+      const value = Math.round((i / steps) * 100);
+      ctx.fillText(value, pad - 6, y);
+
+      ctx.strokeStyle = "#eee";
       ctx.beginPath();
-
-      data.forEach((d, i) => {
-        const x = padding + (i / (data.length - 1)) * w;
-        const y = padding + h - ((d[key] - min) / range) * h;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
+      ctx.moveTo(pad, y);
+      ctx.lineTo(pad + w, y);
       ctx.stroke();
     }
 
-    drawLine("weight", "#ff3b30");
-    drawLine("muscle", "#34c759");
-    drawLine("fat", "#007aff");
+    // X-Labels (Datum)
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    data.forEach((d, i) => {
+      const x = pad + (i / (data.length - 1 || 1)) * w;
+      ctx.fillStyle = "#666";
+      ctx.fillText(d.date.slice(5), x, pad + h + 6);
+    });
   }
 
   // ===============================
-  // FORMULAR
+  // CHART
   // ===============================
-  form.addEventListener("submit", e => {
-    e.preventDefault();
+  function renderChart() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (data.length < 2) return;
 
-    const entry = {
-      date: dateInput.value,
-      weight: Number(weightInput.value),
-      muscle: Number(muscleInput.value),
-      fat: Number(fatInput.value)
-    };
-
-    if (Object.values(entry).some(v => !v && v !== 0)) {
-      alert("Bitte alle Felder ausfüllen");
-      return;
-    }
-
-    data.push(entry);
-    localStorage.setItem("bodyData", JSON.stringify(data));
-
-    renderTable();
-    renderChart();
-
-    form.reset();
-    dateInput.valueAsDate = new Date();
-  });
-
-  // ===============================
-  // START
-  // ===============================
-  renderTable();
-  renderChart();
-});
+    const pad = 40;
+    const w = canvas.width / (window.devicePixelRatio || 1) - pad * 2;
+    const h = canvas.height / (window.devicePixelRatio ||
