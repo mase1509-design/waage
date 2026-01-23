@@ -53,93 +53,82 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===============================
   // CHART + AXES (UNÜBERSEHBAR)
   // ===============================
-  function renderChart() {
-    const w = canvas.width / (window.devicePixelRatio || 1);
-    const h = canvas.height / (window.devicePixelRatio || 1);
+function renderChart() {
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
 
-    // Hintergrund
-    ctx.fillStyle = "#f0f0f0";
-    ctx.fillRect(0, 0, w, h);
+  ctx.clearRect(0, 0, w, h);
 
-    // Debug Text
-    ctx.fillStyle = "#000";
-    ctx.font = "16px sans-serif";
-    ctx.fillText("Chart active", 10, 20);
+  if (data.length < 2) return;
 
-    if (data.length < 2) {
-      ctx.fillText("Zu wenig Daten", 10, 45);
-      return;
-    }
+  const pad = 50;
+  const chartW = w - pad * 2;
+  const chartH = h - pad * 2;
 
-    const pad = 50;
-    const chartW = w - pad * 2;
-    const chartH = h - pad * 2;
+  // Feste Skala
+  const maxY = 100;
+  const minY = 0;
 
-    // ACHSEN
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
+  // Achsen
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 2;
 
-    // Y
+  ctx.beginPath();
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, pad + chartH);
+  ctx.lineTo(pad + chartW, pad + chartH);
+  ctx.stroke();
+
+  // Y Labels
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+
+  for (let i = 0; i <= 5; i++) {
+    const val = i * 20;
+    const y = pad + chartH - (val / maxY) * chartH;
+    ctx.fillText(val + "%", pad - 6, y);
+  }
+
+  // X Labels
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  data.forEach((d, i) => {
+    const x = pad + (i / (data.length - 1)) * chartW;
+    ctx.fillText(d.date.slice(5), x, pad + chartH + 6);
+  });
+
+  function drawLine(key, color, normalize = false) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(pad, pad);
-    ctx.lineTo(pad, pad + chartH);
-    ctx.stroke();
 
-    // X
-    ctx.beginPath();
-    ctx.moveTo(pad, pad + chartH);
-    ctx.lineTo(pad + chartW, pad + chartH);
-    ctx.stroke();
-
-    // Y Labels 0–100
-    ctx.font = "14px sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    for (let i = 0; i <= 5; i++) {
-      const y = pad + chartH - (i / 5) * chartH;
-      const val = i * 20;
-      ctx.fillText(val, pad - 8, y);
-    }
-
-    // X Labels (Datum)
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
     data.forEach((d, i) => {
+      let value = d[key];
+
+      // Gewicht normalisieren (z.B. 0–150 kg → 0–100 %)
+      if (normalize) value = (value / 150) * 100;
+
       const x = pad + (i / (data.length - 1)) * chartW;
-      ctx.fillText(d.date.slice(5), x, pad + chartH + 8);
+      const y = pad + chartH - (value / maxY) * chartH;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
     });
 
-    function drawLine(key, color) {
-      const vals = data.map(d => d[key]);
-      const min = Math.min(...vals);
-      const max = Math.max(...vals);
-      const range = max - min || 1;
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-
-      data.forEach((d, i) => {
-        const x = pad + (i / (data.length - 1)) * chartW;
-        const y = pad + chartH - ((d[key] - min) / range) * chartH;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      ctx.stroke();
-    }
-
-    drawLine("weight", "red");
-    drawLine("muscle", "green");
-    drawLine("fat", "blue");
+    ctx.stroke();
   }
+
+  drawLine("weight", "#ff3b30", true);  // normiertes Gewicht
+  drawLine("muscle", "#34c759");        // %
+  drawLine("fat", "#007aff");           // %
+}
+
 
   // ===============================
   // FORM
