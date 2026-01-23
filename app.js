@@ -1,9 +1,22 @@
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ===============================
+  // DOM
+  // ===============================
   const form = document.getElementById("entryForm");
   const tableBody = document.querySelector("#dataTable tbody");
-  const canvas = document.getElementById("chart");
-  const ctx = canvas.getContext("2d");
+
+  const canvases = {
+    weight: document.getElementById("chartWeight"),
+    muscle: document.getElementById("chartMuscle"),
+    fat: document.getElementById("chartFat")
+  };
+
+  const ctxs = {
+    weight: canvases.weight.getContext("2d"),
+    muscle: canvases.muscle.getContext("2d"),
+    fat: canvases.fat.getContext("2d")
+  };
 
   const dateInput = document.getElementById("date");
   const weightInput = document.getElementById("weight");
@@ -11,11 +24,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const fatInput = document.getElementById("fat");
 
   // ===============================
-  // CANVAS FIX (ZWINGEND)
+  // CANVAS SCALING (RETINA SAFE)
   // ===============================
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
+  function resizeCanvas(canvas, ctx) {
     const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
 
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -23,8 +36,16 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
+  Object.keys(canvases).forEach(key =>
+    resizeCanvas(canvases[key], ctxs[key])
+  );
+
+  window.addEventListener("resize", () => {
+    Object.keys(canvases).forEach(key =>
+      resizeCanvas(canvases[key], ctxs[key])
+    );
+    renderCharts();
+  });
 
   // ===============================
   // INIT
@@ -42,93 +63,122 @@ document.addEventListener("DOMContentLoaded", () => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${d.date}</td>
-        <td>${d.weight}</td>
-        <td>${d.muscle}</td>
-        <td>${d.fat}</td>
+        <td>${d.weight.toFixed(1)}</td>
+        <td>${d.muscle.toFixed(1)}</td>
+        <td>${d.fat.toFixed(1)}</td>
       `;
       tableBody.appendChild(tr);
     });
   }
 
   // ===============================
-  // CHART + AXES (UNÜBERSEHBAR)
+  // GENERIC LINE CHART
   // ===============================
-function renderChart() {
-  const w = canvas.width / (window.devicePixelRatio || 1);
-  const h = canvas.height / (window.devicePixelRatio || 1);
+  function drawLineChart({
+    ctx,
+    values,
+    labels,
+    minY,
+    maxY,
+    color,
+    unit
+  }) {
+    const w = ctx.canvas.width / (window.devicePixelRatio || 1);
+    const h = ctx.canvas.height / (window.devicePixelRatio || 1);
 
-  ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, w, h);
 
-  if (data.length < 2) return;
+    if (values.length < 2) return;
 
-  const pad = 50;
-  const chartW = w - pad * 2;
-  const chartH = h - pad * 2;
+    const pad = 40;
+    const chartW = w - pad * 2;
+    const chartH = h - pad * 2;
 
-  // Feste Skala
-  const maxY = 100;
-  const minY = 0;
+    // Axes
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 1.5;
 
-  // Achsen
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pad, pad);
+    ctx.lineTo(pad, pad + chartH);
+    ctx.lineTo(pad + chartW, pad + chartH);
+    ctx.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(pad, pad);
-  ctx.lineTo(pad, pad + chartH);
-  ctx.lineTo(pad + chartW, pad + chartH);
-  ctx.stroke();
+    // Y labels
+    ctx.font = "12px sans-serif";
+    ctx.fillStyle = "#333";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
 
-  // Y Labels
-  ctx.font = "12px sans-serif";
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
+    for (let i = 0; i <= 5; i++) {
+      const value = minY + (i / 5) * (maxY - minY);
+      const y = pad + chartH - (i / 5) * chartH;
+      ctx.fillText(value.toFixed(0) + unit, pad - 6, y);
+    }
 
-  for (let i = 0; i <= 5; i++) {
-    const val = i * 20;
-    const y = pad + chartH - (val / maxY) * chartH;
-    ctx.fillText(val + "%", pad - 6, y);
-  }
+    // X labels
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    labels.forEach((label, i) => {
+      const x = pad + (i / (labels.length - 1)) * chartW;
+      ctx.fillText(label.slice(5), x, pad + chartH + 6);
+    });
 
-  // X Labels
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  data.forEach((d, i) => {
-    const x = pad + (i / (data.length - 1)) * chartW;
-    ctx.fillText(d.date.slice(5), x, pad + chartH + 6);
-  });
-
-  function drawLine(key, color, normalize = false) {
+    // Line
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.beginPath();
 
-    data.forEach((d, i) => {
-      let value = d[key];
-
-      // Gewicht normalisieren (z.B. 0–150 kg → 0–100 %)
-      if (normalize) value = (value / 150) * 100;
-
-      const x = pad + (i / (data.length - 1)) * chartW;
-      const y = pad + chartH - (value / maxY) * chartH;
+    values.forEach((val, i) => {
+      const x = pad + (i / (values.length - 1)) * chartW;
+      const y =
+        pad +
+        chartH -
+        ((val - minY) / (maxY - minY)) * chartH;
 
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
     });
 
     ctx.stroke();
   }
 
-  drawLine("weight", "#ff3b30", true);  // normiertes Gewicht
-  drawLine("muscle", "#34c759");        // %
-  drawLine("fat", "#007aff");           // %
-}
+  // ===============================
+  // RENDER ALL CHARTS
+  // ===============================
+  function renderCharts() {
+    const labels = data.map(d => d.date);
 
+    drawLineChart({
+      ctx: ctxs.weight,
+      values: data.map(d => d.weight),
+      labels,
+      minY: 70,
+      maxY: 110,
+      color: "#ff3b30",
+      unit: "kg"
+    });
+
+    drawLineChart({
+      ctx: ctxs.muscle,
+      values: data.map(d => d.muscle),
+      labels,
+      minY: 20,
+      maxY: 60,
+      color: "#34c759",
+      unit: "%"
+    });
+
+    drawLineChart({
+      ctx: ctxs.fat,
+      values: data.map(d => d.fat),
+      labels,
+      minY: 5,
+      maxY: 15,
+      color: "#007aff",
+      unit: "%"
+    });
+  }
 
   // ===============================
   // FORM
@@ -146,12 +196,15 @@ function renderChart() {
     localStorage.setItem("bodyData", JSON.stringify(data));
 
     renderTable();
-    renderChart();
+    renderCharts();
 
     form.reset();
     dateInput.valueAsDate = new Date();
   });
 
+  // ===============================
+  // START
+  // ===============================
   renderTable();
-  renderChart();
+  renderCharts();
 });
